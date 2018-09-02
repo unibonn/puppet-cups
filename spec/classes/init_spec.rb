@@ -11,11 +11,13 @@ RSpec.describe 'cups' do
         listen: ['localhost:631', '/var/run/cups/cups.sock'],
         package_ensure: 'present',
         package_manage: 'true',
+        policies: {},
         purge_unmanaged_queues: 'false',
         service_enable: 'true',
         service_ensure: 'running',
         service_manage: 'true',
-        service_names: 'cups'
+        service_names: 'cups',
+        web_interface: true
       }
     end
 
@@ -24,9 +26,10 @@ RSpec.describe 'cups' do
         default_queue
         papersize
         resources
-        web_interface
       ]
     end
+
+    let(:content) { file_fixture('cupsd.conf.default').read }
 
     it { is_expected.to contain_class('cups::params') }
 
@@ -46,7 +49,7 @@ RSpec.describe 'cups' do
 
     it { is_expected.to contain_file('/etc/cups/cupsd.conf').with(mode: '0640') }
 
-    it { is_expected.to contain_file('/etc/cups/cupsd.conf').with(content: /\A#.*DO NOT/) }
+    it { is_expected.to contain_file('/etc/cups/cupsd.conf').with(content: content) }
 
     it { is_expected.to contain_class('cups::server').that_requires('Class[cups::packages]') }
 
@@ -229,6 +232,96 @@ RSpec.describe 'cups' do
         it { is_expected.to contain_exec('cups::papersize').with(command: 'paperconfig -p a4') }
 
         it { is_expected.to contain_exec('cups::papersize').with(unless: 'cat /etc/papersize | grep -w a4') }
+      end
+    end
+
+    describe 'policies' do
+      let(:facts) { any_supported_os }
+
+      context 'when modifying the default policy' do
+        context 'when setting JobPrivateAccess to all' do
+          let(:params) { { policies: { 'default' => { 'JobPrivateAccess' => 'all' } } } }
+          let(:content) { %r{<Policy default>.*?^\s*JobPrivateAccess all$.*?</Policy>}m }
+
+          it { is_expected.to contain_file('/etc/cups/cupsd.conf').with(content: content) }
+        end
+
+        context 'when setting JobPrivateValues to none' do
+          let(:params) { { policies: { 'default' => { 'JobPrivateValues' => 'none' } } } }
+          let(:content) { %r{<Policy default>.*?^\s*JobPrivateValues none$.*?</Policy>}m }
+
+          it { is_expected.to contain_file('/etc/cups/cupsd.conf').with(content: content) }
+        end
+
+        context 'when setting SubscriptionPrivateAccess to all' do
+          let(:params) { { policies: { 'default' => { 'SubscriptionPrivateAccess' => 'all' } } } }
+          let(:content) { %r{<Policy default>.*?^\s*SubscriptionPrivateAccess all$.*?</Policy>}m }
+
+          it { is_expected.to contain_file('/etc/cups/cupsd.conf').with(content: content) }
+        end
+
+        context 'when setting SubscriptionPrivateValues to none' do
+          let(:params) { { policies: { 'default' => { 'SubscriptionPrivateValues' => 'none' } } } }
+          let(:content) { %r{<Policy default>.*?^\s*SubscriptionPrivateValues none$.*?</Policy>}m }
+
+          it { is_expected.to contain_file('/etc/cups/cupsd.conf').with(content: content) }
+        end
+
+        context 'when modifying a Limit' do
+          let(:params) do
+            {
+              policies: {
+                'default' => {
+                  'Limit' => {
+                    'Create-Job' => {
+                      'AuthType' => 'Negotiate',
+                      'Order' => 'deny,allow'
+                    }
+                  }
+                }
+              }
+            }
+          end
+          let(:content) { %r{<Policy default>.*?<Limit [^>]*Create-Job[^>]*>\s*AuthType Negotiate\s*Order deny,allow\s*</Limit>.*?</Policy>}m }
+
+          it { is_expected.to contain_file('/etc/cups/cupsd.conf').with(content: content) }
+        end
+      end
+
+      context 'when adding a custom policy' do
+        context 'with an empty hash as value' do
+          let(:params) { { policies: { 'lab999' => {} } } }
+
+          it { is_expected.to contain_file('/etc/cups/cupsd.conf').with(content: %r{^<Policy lab999>.*</Policy>$}m) }
+        end
+
+        context 'when setting JobPrivateAccess to all' do
+          let(:params) { { policies: { 'lab999' => { 'JobPrivateAccess' => 'all' } } } }
+          let(:content) { %r{<Policy lab999>.*?^\s*JobPrivateAccess all$.*?</Policy>}m }
+
+          it { is_expected.to contain_file('/etc/cups/cupsd.conf').with(content: content) }
+        end
+
+        context 'when setting JobPrivateValues to none' do
+          let(:params) { { policies: { 'lab999' => { 'JobPrivateValues' => 'none' } } } }
+          let(:content) { %r{<Policy lab999>.*?^\s*JobPrivateValues none$.*?</Policy>}m }
+
+          it { is_expected.to contain_file('/etc/cups/cupsd.conf').with(content: content) }
+        end
+
+        context 'when setting SubscriptionPrivateAccess to all' do
+          let(:params) { { policies: { 'lab999' => { 'SubscriptionPrivateAccess' => 'all' } } } }
+          let(:content) { %r{<Policy lab999>.*?^\s*SubscriptionPrivateAccess all$.*?</Policy>}m }
+
+          it { is_expected.to contain_file('/etc/cups/cupsd.conf').with(content: content) }
+        end
+
+        context 'when setting SubscriptionPrivateValues to none' do
+          let(:params) { { policies: { 'lab999' => { 'SubscriptionPrivateValues' => 'none' } } } }
+          let(:content) { %r{<Policy lab999>.*?^\s*SubscriptionPrivateValues none$.*?</Policy>}m }
+
+          it { is_expected.to contain_file('/etc/cups/cupsd.conf').with(content: content) }
+        end
       end
     end
 

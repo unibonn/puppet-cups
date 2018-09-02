@@ -50,13 +50,14 @@ class cups (
   Boolean                        $package_manage         = true,
   Variant[String, Array[String]] $package_names          = $::cups::params::package_names,
   Optional[String]               $papersize              = undef,
+  Hash                           $policies               = {},
   Boolean                        $purge_unmanaged_queues = false,
   Optional[Hash]                 $resources              = undef,
   Boolean                        $service_enable         = true,
   String                         $service_ensure         = 'running',
   Boolean                        $service_manage         = true,
   Variant[String, Array[String]] $service_names          = 'cups',
-  Optional[Boolean]              $web_interface          = undef,
+  Optional[Boolean]              $web_interface          = true,
 ) inherits cups::params {
 
   contain cups::packages
